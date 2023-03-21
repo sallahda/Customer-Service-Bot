@@ -42,11 +42,11 @@ app.post('/voice', async (req, res) => {
 
 async function generate_response(prompt, conversationHistory = '') {
   try {
-    const completions = await openaiApi.createChatCompletion({
-      model: 'gpt-3.5-turbo',
+    const completions = await openaiApi.createCompletion({
+      model: 'text-davinci-003',
       prompt: `${conversationHistory}Q: ${prompt}\nA:`,
       max_tokens: 100,
-      temperature: 0.4,
+      temperature: 0.3,
       n: 1,
       stop: ['\n']
     });
