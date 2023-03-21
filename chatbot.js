@@ -18,6 +18,42 @@ const configuration = new Configuration({
 
 const openaiApi = new OpenAIApi(configuration);
 
+const faqs = {
+    "faqs": [
+      {
+        "question": "Wat zijn de openingstijden van uw bedrijf?",
+        "answer": "Onze openingstijden zijn van maandag tot en met vrijdag van 9:00 tot 18:00 uur."
+      },
+      {
+        "question": "Hoe kan ik contact opnemen met uw klantenservice?",
+        "answer": "U kunt contact opnemen met onze klantenservice door een e-mail te sturen naar support@voorbeeldbedrijf.com of door te bellen naar 0800-1234."
+      },
+      {
+        "question": "Wat is de levertijd van jullie producten?",
+        "answer": "De levertijd van onze producten is afhankelijk van het product en de locatie waar het geleverd moet worden. Gemiddeld duurt het 2 tot 5 werkdagen."
+      },
+      {
+        "question": "Kan ik mijn bestelling annuleren?",
+        "answer": "Ja, u kunt uw bestelling annuleren zolang deze nog niet verzonden is. Neem contact op met onze klantenservice om uw annulering door te geven."
+      },
+      {
+        "question": "Wat is jullie retourbeleid?",
+        "answer": "Wij hanteren een retourbeleid van 14 dagen. U kunt het product binnen deze periode retourneren als het niet aan uw verwachtingen voldoet. Neem contact op met onze klantenservice om uw retourzending aan te melden."
+      }
+    ]
+  }
+
+function createFAQPrompt(faqs) {
+  let prompt = 'De volgende vragen zijn veelgestelde vragen met hun respectievelijke antwoorden:\n';
+  for (const faq of faqs.faqs) {
+    console.log(faq);
+    prompt += `Q: ${faq.question}\nA: ${faq.answer}\n`;
+  }
+  return prompt;
+}
+
+const faqPrompt = createFAQPrompt(faqs);
+
 app.post('/voice', async (req, res) => {
   const twiml = new VoiceResponse();
 
@@ -57,8 +93,6 @@ async function generate_response(prompt, conversationHistory = '') {
   }
 }
 
-
-
 app.post('/process-input', async (req, res) => {
   const twiml = new VoiceResponse();
 
@@ -66,14 +100,14 @@ app.post('/process-input', async (req, res) => {
   console.log(`UserSpeech: ${userSpeech}`);
 
   // Use OpenAI's GPT-3 to generate a response to the user's question
-  const response = await generate_response(userSpeech, req.body.conversationHistory);
+  const response = await generate_response(userSpeech, faqPrompt + req.body.conversationHistory);
   console.log(`Response: ${response}`);
 
   // Create a gather block to prompt the user for more input
   const gather = twiml.gather({
     input: 'speech',
     action: '/process-input',
-    language: 'nl-NL', // Change this to the desired language
+    language: 'nl-NL',
     timeout: 10,
     speechTimeout: 'auto',
     hints: 'ask another question, or say "goodbye" to end the call',
