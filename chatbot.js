@@ -3,17 +3,17 @@ const express = require('express');
 const twilio = require('twilio');
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
-const app = express();
+require('dotenv').config()
 
-const port = 3080;
+const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Set up the OpenAI API credentials
 const configuration = new Configuration({
-  organization: "org-nKtsjKbguwzcTaQlJ6HD1NSc",
-  apiKey: "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",
+  organization: process.env.ORGANIZATION_ID,
+  apiKey: process.env.API_KEY,
 });
 
 const openaiApi = new OpenAIApi(configuration);
@@ -68,7 +68,7 @@ app.post('/voice', async (req, res) => {
     method: 'POST'
   });
   
-  gather.say('Gelieve uw vraag te stellen na de pieptoon, of zeg "hulp" voor assistentie.');
+  gather.say('Gelieve uw vraag te stellen na de pieptoon. Uw kunt de gesprek beëindigen door tot ziens te zeggen.');
   
   console.log(`Twiml: ${twiml.toString()}`);
   
@@ -115,9 +115,17 @@ app.post('/process-input', async (req, res) => {
     method: 'POST'
   });
 
+  // if (userSpeech === 'Tot ziens.') {
+  //   gather.say("Tot ziens!");
+  //   twiml.hangup();
+  // }
+
   // Say the generated response and prompt the user for more input
   gather.say(response);
-  gather.say('Als u nog een vraag heeft, kunt u die nu stellen, of zeg "tot ziens" om het gesprek te beëindigen.');
+  gather.say('Als u nog een vraag heeft, kunt u die nu stellen.');
+
+
+
 
   // If the user does not provide any input, end the call
   twiml.say('Dank u voor het gebruik van onze service. Tot ziens.');
@@ -128,11 +136,9 @@ app.post('/process-input', async (req, res) => {
   res.send(twiml.toString());
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
+app.listen(process.env.BACKEND_PORT, () => {
+  console.log(`Server listening on http://localhost:${process.env.BACKEND_PORT}`);
 });
-
-//TODO: Test of dit nu werkt zonder Database connectie en zonder training.
 
 //TODO: Vind de beste Model voor deze use case.
 
