@@ -20,6 +20,9 @@ const configuration = new Configuration({
   apiKey: process.env.API_KEY,
 });
 
+// Global variables
+companyName = "MockBedrijf"
+
 const openaiApi = new OpenAIApi(configuration);
 
 const faqs = {
@@ -56,6 +59,7 @@ function createFAQPrompt(faqs) {
   return prompt;
 }
 
+// const faqPromptShort = 'Openingstijden: ma-vr 9:00-18:00. Contact: support@voorbeeldbedrijf.com, 0800-1234. Levertijd: 2-5 werkdagen. Annulering: mogelijk voor verzending. Retourbeleid: 14 dagen.'
 const faqPrompt = createFAQPrompt(faqs);
 
 app.post('/voice', async (req, res) => {
@@ -82,9 +86,12 @@ app.post('/voice', async (req, res) => {
 
 async function generate_response(prompt, conversationHistory = '') {
   try {
+    const context = `Je bent een AI voor ${companyName} en biedt klantenservice door nauwkeurige en nuttige informatie te geven over de producten, diensten, beleidsmaatregelen en
+                      procedures van het bedrijf. Beantwoord vragen beleefd en professioneel.\n`;
+
     const completions = await openaiApi.createCompletion({
       model: 'text-davinci-003',
-      prompt: `${conversationHistory}Q: ${prompt}\nA:`,
+      prompt: `${context}${conversationHistory}Q: ${prompt}\nA:`,
       max_tokens: 100,
       temperature: 0.3,
       n: 1,
@@ -96,7 +103,6 @@ async function generate_response(prompt, conversationHistory = '') {
     return 'Het spijt me, maar ik kan uw verzoek momenteel niet verwerken. Probeer het later nog eens.';
   }
 }
-
 app.post('/process-input', async (req, res) => {
   const twiml = new VoiceResponse();
 
@@ -114,7 +120,6 @@ app.post('/process-input', async (req, res) => {
     language: 'nl-NL',
     timeout: 10,
     speechTimeout: 'auto',
-    hints: 'ask another question, or say "goodbye" to end the call',
     numDigits: 1,
     method: 'POST'
   });
@@ -128,9 +133,6 @@ app.post('/process-input', async (req, res) => {
   gather.say(response);
   gather.say('Als u nog een vraag heeft, kunt u die nu stellen.');
 
-
-
-
   // If the user does not provide any input, end the call
   twiml.say('Dank u voor het gebruik van onze service. Tot ziens.');
 
@@ -143,8 +145,6 @@ app.post('/process-input', async (req, res) => {
 app.listen(process.env.BACKEND_PORT, () => {
   console.log(`Server listening on http://localhost:${process.env.BACKEND_PORT}`);
 });
-
-//TODO: Vind de beste Model voor deze use case.
 
 // TODO: Feed the api eerst een prompt die hem fine tuned om vragen te beantwoorden als een klantenservice medewerker.
 
