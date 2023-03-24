@@ -1,18 +1,17 @@
+require('dotenv').config()
+
 const { Configuration, OpenAIApi } = require("openai");
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const client = new MongoClient(process.env.DB_URL, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 const express = require('express');
+const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 const twilio = require('twilio');
 const VoiceResponse = twilio.twiml.VoiceResponse;
-
-require('dotenv').config()
-
-const app = express();
 
 // Set up the OpenAI API credentials
 const configuration = new Configuration({
@@ -65,18 +64,18 @@ const faqPrompt = createFAQPrompt(faqs);
 app.post('/voice', async (req, res) => {
   const twiml = new VoiceResponse();
 
-  // Prompt the user for input
+  // Prompt the user for their customer number
   const gather = twiml.gather({
-    input: 'speech',
-    action: '/process-input',
+    input: 'dtmf',
+    action: '/process-customer-number',
     language: 'nl-NL',
     timeout: 10,
     speechTimeout: 'auto',
-    numDigits: 1,
+    numDigits: 6,
     method: 'POST'
   });
   
-  gather.say('Gelieve uw vraag te stellen na de pieptoon. Uw kunt de gesprek beëindigen door tot ziens te zeggen.');
+  gather.say('Welkom bij onze klantenservice. Geef alstublieft uw klantnummer op.');
   
   console.log(`Twiml: ${twiml.toString()}`);
   
@@ -84,39 +83,58 @@ app.post('/voice', async (req, res) => {
   res.send(twiml.toString());
 });
 
-async function generate_response(prompt, conversationHistory = '') {
-  try {
-    const context = `Je bent een AI voor ${companyName} en biedt klantenservice door nauwkeurige en nuttige informatie te geven over de producten, diensten, beleidsmaatregelen en
-                      procedures van het bedrijf. Beantwoord vragen beleefd en professioneel.\n`;
+app.post('/process-customer-number', async (req, res) => {
+  const twiml = new VoiceResponse();
+  const userSpeech = req.body.SpeechResult;
+  const userDigits = req.body.Digits;
+  console.log(`UserSpeech (Customer Number): ${userSpeech}`);
 
-    const completions = await openaiApi.createCompletion({
-      model: 'text-davinci-003',
-      prompt: `${context}${conversationHistory}Q: ${prompt}\nA:`,
-      max_tokens: 100,
-      temperature: 0.3,
-      n: 1,
-      stop: ['\n']
+  const customerNumber = userSpeech || userDigits;
+
+  // Retrieve customer information from the database
+  const customerInfo = await getCustomerInfo(customerNumber);
+
+  if (customerInfo) {
+    console.log(customerInfo);
+
+    // Customer information found, continue with the conversation
+    const gather = twiml.gather({
+      input: 'speech',
+      action: `/process-input?customerInfo=${encodeURIComponent(JSON.stringify(customerInfo))}`,
+      language: 'nl-NL',
+      timeout: 10,
+      speechTimeout: 'auto',
+      numDigits: 1,
+      method: 'POST'
     });
-    return completions.data.choices[0].text.trim();
-  } catch (error) {
-    console.error('Error generating response:', error);
-    return 'Het spijt me, maar ik kan uw verzoek momenteel niet verwerken. Probeer het later nog eens.';
+
+    customerName = customerInfo.firstName;
+
+    gather.say(`Geachte ${customerName}, uw klantnummer is gevonden. Stel alstublieft uw vraag.`);   
+  } else {
+    twiml.say('Het opgegeven klantnummer kon niet worden gevonden. Probeer het opnieuw.');
   }
-}
+
+  res.type('text/xml');
+  res.send(twiml.toString());
+});
+
 app.post('/process-input', async (req, res) => {
   const twiml = new VoiceResponse();
 
   const userSpeech = req.body.SpeechResult;
   console.log(`UserSpeech: ${userSpeech}`);
 
+  const customerInfo = JSON.parse(decodeURIComponent(req.query.customerInfo));
+
   // Use OpenAI's GPT-3 to generate a response to the user's question
-  const response = await generate_response(userSpeech, faqPrompt + req.body.conversationHistory);
+  const response = await generate_response(userSpeech, customerInfo, faqPrompt + req.body.conversationHistory);
   console.log(`Response: ${response}`);
 
   // Create a gather block to prompt the user for more input
   const gather = twiml.gather({
     input: 'speech',
-    action: '/process-input',
+    action: `/process-input?customerInfo=${encodeURIComponent(JSON.stringify(customerInfo))}`,
     language: 'nl-NL',
     timeout: 10,
     speechTimeout: 'auto',
@@ -141,6 +159,54 @@ app.post('/process-input', async (req, res) => {
   res.type('text/xml');
   res.send(twiml.toString());
 });
+
+async function getCustomerInfo(customerNumber) {
+  // Connect to the MongoDB database and retrieve the customer's information
+
+  try {
+    await client.connect();
+
+    const database = client.db('mockDb');
+    const customersCollection = database.collection('customers');
+
+    const query = { customerNumber: parseInt(customerNumber) };
+    const customerInfo = await customersCollection.findOne(query);
+
+    return customerInfo;
+  } catch (err) {
+    console.error(err);
+  } finally {
+    await client.close();
+  }
+
+  console.log(customerInfo);
+
+  // Return the customer's information
+  return customerInfo;
+}
+
+async function generate_response(prompt, customerInfo, conversationHistory = '') {
+
+  try {
+    const context = `Je bent een AI voor ${companyName} en biedt klantenservice door nauwkeurige en nuttige informatie te geven over de producten, diensten, beleidsmaatregelen en
+                      procedures van het bedrijf. Beantwoord vragen beleefd en professioneel.\n`;
+
+    const completions = await openaiApi.createCompletion({
+      model: 'text-davinci-003',
+      // prompt: `Customer Info: ${customerInfo}\n${conversationHistory}Q: ${prompt}\nA:`,
+      prompt: `${context}\nCustomer Info:${customerInfo}\n${conversationHistory}Q: ${prompt}\nA:`,
+      max_tokens: 100,
+      temperature: 0.3,
+      n: 1,
+      stop: ['\n']
+    });
+
+    return completions.data.choices[0].text.trim();
+  } catch (error) {
+    console.error('Error generating response:', error);
+    return 'Het spijt me, maar ik kan uw verzoek momenteel niet verwerken. Probeer het later nog eens.';
+  }
+}
 
 app.listen(process.env.BACKEND_PORT, () => {
   console.log(`Server listening on http://localhost:${process.env.BACKEND_PORT}`);
