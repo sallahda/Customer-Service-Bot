@@ -1,14 +1,18 @@
 const { Configuration, OpenAIApi } = require("openai");
+
+const { MongoClient, ServerApiVersion } = require('mongodb');
+const client = new MongoClient(process.env.DB_URL, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
 const express = require('express');
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
 const twilio = require('twilio');
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
 require('dotenv').config()
 
 const app = express();
-
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
 
 // Set up the OpenAI API credentials
 const configuration = new Configuration({
