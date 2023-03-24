@@ -19,6 +19,10 @@ const configuration = new Configuration({
   apiKey: process.env.API_KEY,
 });
 
+// gather.say({
+//   voice: 'Joanna'
+// }, 'Hello, this is Joanna from Amazon Polly.');
+
 // Global variables
 companyName = "MockBedrijf"
 
@@ -74,8 +78,12 @@ app.post('/voice', async (req, res) => {
     numDigits: 6,
     method: 'POST'
   });
+
+  // gather.say({
+//   voice: 'Joanna'
+// }, 'Hello, this is Joanna from Amazon Polly.');
   
-  gather.say('Welkom bij onze klantenservice. Geef alstublieft uw klantnummer op.');
+  gather.say({voice: 'Polly.Ruben'}, 'Welkom bij onze klantenservice. Geef alstublieft uw klantnummer op.');
   
   console.log(`Twiml: ${twiml.toString()}`);
   
@@ -110,9 +118,9 @@ app.post('/process-customer-number', async (req, res) => {
 
     customerName = customerInfo.firstName;
 
-    gather.say(`Geachte ${customerName}, uw klantnummer is gevonden. Stel alstublieft uw vraag.`);   
+    gather.say({voice: 'Polly.Ruben'}, `Geachte ${customerName}, uw klantnummer is gevonden. Stel alstublieft uw vraag.`);   
   } else {
-    twiml.say('Het opgegeven klantnummer kon niet worden gevonden. Probeer het opnieuw.');
+    twiml.say({voice: 'Polly.Ruben'}, 'Het opgegeven klantnummer kon niet worden gevonden. Probeer het opnieuw.');
   }
 
   res.type('text/xml');
@@ -148,11 +156,11 @@ app.post('/process-input', async (req, res) => {
   // }
 
   // Say the generated response and prompt the user for more input
-  gather.say(response);
-  gather.say('Als u nog een vraag heeft, kunt u die nu stellen.');
+  gather.say({voice: 'Polly.Ruben'}, response);
+  gather.say({voice: 'Polly.Ruben'}, 'Als u nog een vraag heeft, kunt u die nu stellen.');
 
   // If the user does not provide any input, end the call
-  twiml.say('Dank u voor het gebruik van onze service. Tot ziens.');
+  twiml.say({voice: 'Polly.Ruben'}, 'Dank u voor het gebruik van onze service. Tot ziens.');
 
   console.log(`Twiml: ${twiml.toString()}`);
 
