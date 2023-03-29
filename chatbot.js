@@ -72,7 +72,7 @@ app.post('/voice', async (req, res) => {
     method: 'POST'
   });
   
-  gather.say({voice: defaultVoice}, 'Welkom bij onze klantenservice! Kies uit de volgende opties: Toets 1 voor algemene vragen, toets 2 voor vragen over uw factuur en/of bestelling of toets 3 om met een medewerker te spreken.');
+  gather.say({voice: defaultVoice}, 'Welkom bij onze klantenservice! Kies uit de volgende opties: Toets 1 voor algemene vragen, toets 2 voor vragen over uw factuur of bestelling of toets 3 om met een medewerker te spreken.');
   
   console.log(`Twiml: ${twiml.toString()}`);
   
@@ -198,7 +198,7 @@ app.post('/process-customer-number', async (req, res) => {
     gather.say({voice: defaultVoice}, `Geachte ${customerName}, uw klantnummer is gevonden. Stel alstublieft uw vraag.`);   
   } else {
     twiml.say({voice: defaultVoice}, 'Het opgegeven klantnummer kon niet worden gevonden. Probeer het opnieuw.');
-    twiml.redirect
+    twiml.redirect('/personal');
   }
 
   res.type('text/xml');
