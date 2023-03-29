@@ -63,11 +63,10 @@ app.post('/voice', async (req, res) => {
 
   // Prompt the user for their customer number
   const gather = twiml.gather({
-    input: 'dtmf',
     action: '/path',
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 'auto',
+    speechTimeout: 10,
     numDigits: 1,
     method: 'POST'
   });
@@ -112,7 +111,7 @@ app.post('/faq', async (req, res) => {
     method: 'POST',
     timeout: 10,
     language: 'nl-NL',
-    speechTimeout: 'auto',
+    speechTimeout: 10,
   });
 
   gather.say({voice: defaultVoice}, 'Stel nu uw algemene vraag.')
@@ -135,7 +134,7 @@ app.post('/process-faq', async (req, res) => {
     action: `/process-faq`,
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 'auto',
+    speechTimeout: 10,
     method: 'POST'
   });
 
@@ -151,16 +150,16 @@ app.post('/personal', async (req, res) => {
 
   // Prompt the user for their customer number
   const gather = twiml.gather({
-    input: 'dtmf',
+    input: 'dtmf speech',
     action: '/process-customer-number',
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 'auto',
+    speechTimeout: 10,
     numDigits: 6,
     method: 'POST'
   });
   
-  gather.say({voice: defaultVoice}, 'Geef alstublieft uw klantnummer op.');
+  gather.say({voice: defaultVoice}, 'Geef alstublieft uw klantnummer op of, indien u uw adres en huisnummer mondeling wilt doorgeven, kunt u dat nu doen.');
   
   console.log(`Twiml: ${twiml.toString()}`);
   
@@ -168,16 +167,18 @@ app.post('/personal', async (req, res) => {
   res.send(twiml.toString());
 });
 
+//TODO: GEEF EEN PAAR OPTIES VOOR DE REDEN VAN BELLEN, DENK NA OF JE HIER DE CUSTOMERINFO AL WILT OPHALEN EN GWN MEEWILT GEVEN IN DE QUERYSTRING OF NIET.
+
 app.post('/process-customer-number', async (req, res) => {
   const twiml = new VoiceResponse();
   const userSpeech = req.body.SpeechResult;
   const userDigits = req.body.Digits;
   console.log(`UserSpeech (Customer Number): ${userSpeech}`);
 
-  const customerNumber = userSpeech || userDigits;
+  const customerCredential = userSpeech || userDigits;
 
   // Retrieve customer information from the database
-  const customerInfo = await getCustomerInfo(customerNumber);
+  const customerInfo = await getCustomerInfo(customerCredential);
 
   if (customerInfo) {
     console.log(customerInfo);
@@ -188,16 +189,16 @@ app.post('/process-customer-number', async (req, res) => {
       action: `/process-personal?customerInfo=${encodeURIComponent(JSON.stringify(customerInfo))}`,
       language: 'nl-NL',
       timeout: 10,
-      speechTimeout: 'auto',
+      speechTimeout: 3,
       numDigits: 1,
       method: 'POST'
     });
 
-    customerName = customerInfo.firstName;
+    customerName = customerInfo.voornaam;
 
     gather.say({voice: defaultVoice}, `Geachte ${customerName}, uw klantnummer is gevonden. Stel alstublieft uw vraag.`);   
   } else {
-    twiml.say({voice: defaultVoice}, 'Het opgegeven klantnummer kon niet worden gevonden. Probeer het opnieuw.');
+    twiml.say({voice: defaultVoice}, 'Het opgegeven klantnummer of adres kon niet worden gevonden. Probeer het opnieuw.');
     twiml.redirect('/personal');
   }
 
@@ -225,7 +226,7 @@ app.post('/process-personal', async (req, res) => {
     action: `/process-personal?customerInfo=${encodeURIComponent(JSON.stringify(customerInfo))}`,
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 'auto',
+    speechTimeout: 10,
     numDigits: 1,
     method: 'POST'
   });
@@ -262,9 +263,22 @@ async function getCustomerInfo(customerNumber) {
     const query = { klantnummer: parseInt(customerNumber) };
     const customerInfo = await customersCollection.findOne(query);
 
-    console.log(customerNumber);
+    if (customerInfo) {
+      console.log(customerInfo);
+      return customerInfo;
+    } else {
+      const queryByAddress = { adres: customerNumber };
+      const customerInfoByAddress = await customersCollection.findOne(queryByAddress);
+    
+      if (customerInfoByAddress) {
+        console.log(customerInfoByAddress);
+        return customerInfoByAddress;
+      } else {
+        console.log('Customer not found');
+        return null;
+      }
+    }
 
-    return customerInfo;
   } catch (err) {
     console.error(err);
   } finally {

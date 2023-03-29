@@ -9,25 +9,34 @@ const collectionName = 'klanten';
 const getRandomNumber = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 const generateRandomCustomer = () => {
-  const voornamen = ['Jan', 'Sofie', 'Maarten', 'Eva', 'Pieter'];
-  const achternamen = ['Jansen', 'De Boer', 'Van Dijk', 'Bakker', 'Smit'];
+const voornamen = ['Jan', 'Sofie', 'Maarten', 'Eva', 'Pieter', 'Joost', 'Hakim', 'Rida', 'Bo', 'Rayan'];
+const achternamen = ['Jansen', 'De Boer', 'Van Dijk', 'Bakker', 'Smit', 'Derksen', 'Stap', 'Derry', 'Pino', 'Virgil'];
+const postcodes = ['1000AA', '2010BB', '3000CC', '4000DD', '5000EE', '6000FF', '7000GG', '8000HH', '9000II', '1000JJ'];
+const addresses = ['Nieuwezijds Voorburgwal 147', 'Brouwersgracht 246', 'Van Nijenrodeweg 776', 'Prinsengracht 92', 'Olympiaplein 74', 'Valkenburgerstraat 238', 'Weesperzijde 109', 'Keizersgracht 391 A', 'Elandsstraat 26', 'Singel 32'];
+const telefoonnummers = ['06-12345678', '06-23456789', '06-34567890', '06-45678901', '06-56789012', '06-67890123', '06-78901234', '06-89012345', '06-90123456', '06-01234567'];
 
-  const randomVoornaam = voornamen[Math.floor(Math.random() * voornamen.length)];
-  const randomAchternaam = achternamen[Math.floor(Math.random() * achternamen.length)];
+const randomVoornaam = voornamen[Math.floor(Math.random() * voornamen.length)];
+const randomAchternaam = achternamen[Math.floor(Math.random() * achternamen.length)];
+const randomPostcode = postcodes[Math.floor(Math.random() * postcodes.length)];
+const randomAddress = addresses[Math.floor(Math.random() * addresses.length)];
+const randomTelefoonnummer = telefoonnummers[Math.floor(Math.random() * telefoonnummers.length)];
 
-  const geboortejaar = getRandomNumber(1950, 2000);
-  const geboortemaand = getRandomNumber(1, 12);
-  const geboortedag = getRandomNumber(1, 28);
+const geboortejaar = getRandomNumber(1950, 2000);
+const geboortemaand = getRandomNumber(1, 12);
+const geboortedag = getRandomNumber(1, 28);
 
-  const bestellingen = generateRandomBestellingen(); // Voeg deze regel toe
+const bestellingen = generateRandomBestellingen(); // Voeg deze regel toe
 
-  return {
-    klantnummer: getRandomNumber(100000, 999999),
-    voornaam: randomVoornaam,
-    achternaam: randomAchternaam,
-    geboortedatum: new Date(`${geboortejaar}-${geboortemaand}-${geboortedag}`),
-    bestellingen,
-  };
+return {
+klantnummer: getRandomNumber(100000, 999999),
+voornaam: randomVoornaam,
+achternaam: randomAchternaam,
+geboortedatum: new Date(`${geboortejaar}-${geboortemaand}-${geboortedag}`),
+postcode: randomPostcode,
+adres: randomAddress,
+telefoonnummer: randomTelefoonnummer,
+bestellingen,
+};
 };
 
 const generateRandomBestellingen = () => {
@@ -67,7 +76,7 @@ async function run() {
     const db = client.db(dbName);
     const collection = db.collection(collectionName);
 
-    const klanten = Array.from({ length: 5 }, () => generateRandomCustomer());
+    const klanten = Array.from({ length: 10 }, () => generateRandomCustomer());
 
     const result = await collection.insertMany(klanten);
     console.log(`Succesvol ${result.insertedCount} klanten toegevoegd`);
