@@ -66,12 +66,12 @@ app.post('/voice', async (req, res) => {
     action: '/path',
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 10,
+    speechTimeout: 'auto',
     numDigits: 1,
     method: 'POST'
   });
   
-  gather.say({voice: defaultVoice}, 'Welkom bij onze klantenservice! Kies uit de volgende opties: Toets 1 voor algemene vragen, toets 2 voor vragen over uw factuur of bestelling of toets 3 om met een medewerker te spreken.');
+  gather.say({voice: defaultVoice}, 'Welkom bij onze klantenservice! Kies uit de volgende opties: Toets 1 voor algemene vragen, toets 2 voor vragen over uw factuur of bestelling, of toets 3 om met een medewerker te spreken.');
   
   console.log(`Twiml: ${twiml.toString()}`);
   
@@ -111,7 +111,7 @@ app.post('/faq', async (req, res) => {
     method: 'POST',
     timeout: 10,
     language: 'nl-NL',
-    speechTimeout: 10,
+    speechTimeout: 'auto',
   });
 
   gather.say({voice: defaultVoice}, 'Stel nu uw algemene vraag.')
@@ -134,7 +134,7 @@ app.post('/process-faq', async (req, res) => {
     action: `/process-faq`,
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 10,
+    speechTimeout: 'auto',
     method: 'POST'
   });
 
@@ -151,10 +151,10 @@ app.post('/personal', async (req, res) => {
   // Prompt the user for their customer number
   const gather = twiml.gather({
     input: 'dtmf speech',
-    action: '/process-customer-number',
+    action: '/ask-purpose',
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 10,
+    speechTimeout: 'auto',
     numDigits: 6,
     method: 'POST'
   });
@@ -168,33 +168,66 @@ app.post('/personal', async (req, res) => {
 });
 
 //TODO: GEEF EEN PAAR OPTIES VOOR DE REDEN VAN BELLEN, DENK NA OF JE HIER DE CUSTOMERINFO AL WILT OPHALEN EN GWN MEEWILT GEVEN IN DE QUERYSTRING OF NIET.
-
-app.post('/process-customer-number', async (req, res) => {
+app.post('/ask-purpose', async (req, res) => {
   const twiml = new VoiceResponse();
   const userSpeech = req.body.SpeechResult;
   const userDigits = req.body.Digits;
-  console.log(`UserSpeech (Customer Number): ${userSpeech}`);
 
-  const customerCredential = userSpeech || userDigits;
+  const credential = userSpeech || userDigits;
+  console.log(credential);
+
+  const gather = twiml.gather({
+    action: `/process-customer-number?cred=${encodeURIComponent(JSON.stringify(credential))}`,
+    language: 'nl-NL',
+    timeout: 10,
+    speechTimeout: 'auto',
+    numDigits: 1,
+    method: 'POST'
+  });
+
+  gather.say({voice: defaultVoice}, 'Toets 1 als u een specifieke vraag heeft over een bestelling of factuur, toets 2 als u een vraag heeft over uw accountgegevens.');
+
+  res.type('text/xml');
+  res.send(twiml.toString());
+})
+
+app.post('/process-customer-number', async (req, res) => {
+  const twiml = new VoiceResponse();
+  const digit = req.body.Digits;
+
+  const credential = JSON.parse(decodeURIComponent(req.query.cred));
+  let customerInfo;
+  let customerOrders;
+
+  if (digit == 1) {
+  customerOrders = await getCustomerOrders(credential);
+  console.log('Orders ' + customerOrders);
+  } else {
+  customerInfo = await getCustomerInfo(credential);
+  console.log('Info ' + customerInfo);
+  }
 
   // Retrieve customer information from the database
-  const customerInfo = await getCustomerInfo(customerCredential);
 
-  if (customerInfo) {
-    console.log(customerInfo);
+  if (customerInfo || customerOrders) {
+    console.log(customerInfo || customerOrders);
 
     // Customer information found, continue with the conversation
     const gather = twiml.gather({
       input: 'speech',
-      action: `/process-personal?customerInfo=${encodeURIComponent(JSON.stringify(customerInfo))}`,
+      action: `/process-personal?customerInfo=${encodeURIComponent(JSON.stringify(customerInfo || customerOrders))}`,
       language: 'nl-NL',
       timeout: 10,
-      speechTimeout: 3,
+      speechTimeout: 'auto',
       numDigits: 1,
       method: 'POST'
     });
 
-    customerName = customerInfo.voornaam;
+    if(customerOrders != null) {
+      customerName = customerOrders.voornaam;
+    } else {
+      customerName = customerInfo.voornaam;
+    }
 
     gather.say({voice: defaultVoice}, `Geachte ${customerName}, uw klantnummer is gevonden. Stel alstublieft uw vraag.`);   
   } else {
@@ -213,11 +246,13 @@ app.post('/process-personal', async (req, res) => {
   console.log(`UserSpeech: ${userSpeech}`);
 
   const customerInfo = JSON.parse(decodeURIComponent(req.query.customerInfo));
+  const parsedInfo = JSON.stringify(customerInfo);
+  console.log(parsedInfo);
 
   const context = 'Jij bent een NL klantenservice bot die vragen met betrekking tot facturen of bestelling kan beantwoorden. Met deze prompt heb je de gegevens van de klanten meegekregen inclusief hun bestellingen, gebruik die bij je reacties.';
 
   // Use OpenAI's GPT-3 to generate a response to the user's question
-  const response = await generateResponse(userSpeech, 2, context, customerInfo, req.body.conversationHistory);
+  const response = await generateResponse(userSpeech, 2, context, parsedInfo, req.body.conversationHistory);
   console.log(`Response: ${response}`);
 
   // Create a gather block to prompt the user for more input
@@ -226,15 +261,10 @@ app.post('/process-personal', async (req, res) => {
     action: `/process-personal?customerInfo=${encodeURIComponent(JSON.stringify(customerInfo))}`,
     language: 'nl-NL',
     timeout: 10,
-    speechTimeout: 10,
+    speechTimeout: 'auto',
     numDigits: 1,
     method: 'POST'
   });
-
-  // if (userSpeech === 'Tot ziens.') {
-  //   gather.say("Tot ziens!");
-  //   twiml.hangup();
-  // }
 
   // Say the generated response and prompt the user for more input
   gather.say({voice: defaultVoice}, response);
@@ -249,10 +279,44 @@ app.post('/process-personal', async (req, res) => {
   res.send(twiml.toString());
 });
 
+async function getCustomerOrders(customerCredential) {
+  try {
+    await client.connect();
+
+    const database = client.db('mockDb');
+    const customersCollection = database.collection('klanten');
+
+    // Try to find the customer by their 'klantnummer'
+    let query = { klantnummer: parseInt(customerCredential) };
+    let customerInfo = await customersCollection.findOne(query);
+
+    // If the customer is not found, try to find them by their 'adres'
+    if (!customerInfo) {
+      query = { adres: customerCredential };
+      customerInfo = await customersCollection.findOne(query);
+    }
+
+    // If the customer is found, return their 'voornaam', 'achternaam', and 'bestellingen'
+    if (customerInfo) {
+      const { voornaam, achternaam, bestellingen } = customerInfo;
+      console.log(`Name: ${voornaam} ${achternaam}`);
+      console.log(`Orders: ${bestellingen}`);
+      return { voornaam, achternaam, bestellingen };
+    } else {
+      console.log('Customer not found');
+      return null;
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    await client.close();
+  }
+}
+
 /**
  * Connect to the MongoDB database and retrieve the customer's information
  */
-async function getCustomerInfo(customerNumber) {
+async function getCustomerInfo(customerCredential) {
 
   try {
     await client.connect();
@@ -260,14 +324,15 @@ async function getCustomerInfo(customerNumber) {
     const database = client.db('mockDb');
     const customersCollection = database.collection('klanten');
 
-    const query = { klantnummer: parseInt(customerNumber) };
+    const query = { klantnummer: parseInt(customerCredential) };
+    const projection = {bestellingen: 0};
     const customerInfo = await customersCollection.findOne(query);
 
     if (customerInfo) {
       console.log(customerInfo);
       return customerInfo;
     } else {
-      const queryByAddress = { adres: customerNumber };
+      const queryByAddress = { adres: customerCredential };
       const customerInfoByAddress = await customersCollection.findOne(queryByAddress);
     
       if (customerInfoByAddress) {
