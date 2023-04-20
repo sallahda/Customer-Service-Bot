@@ -11,7 +11,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 const twilio = require('twilio');
-const Voice = require('twilio/lib/rest/Voice');
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
 // Set up the OpenAI API credentials
@@ -19,9 +18,10 @@ const configuration = new Configuration({
   organization: process.env.ORGANIZATION_ID,
   apiKey: process.env.API_KEY,
 });
-const openaiApi = new OpenAIApi(configuration);
 
+const openaiApi = new OpenAIApi(configuration);
 const defaultVoice = 'Polly.Ruben'
+const redirectNumber = '+31 0612345678'
 
 const faqs = {
   "faqs": [
@@ -46,7 +46,7 @@ const faqs = {
       "answer": "Wij hanteren een retourbeleid van 14 dagen. U kunt het product binnen deze periode retourneren als het niet aan uw verwachtingen voldoet. Neem contact op met onze klantenservice om uw retourzending aan te melden."
     }
   ]
-}
+};
 
 function createFAQPrompt(faqs) {
 let prompt = 'De volgende vragen zijn veelgestelde vragen met hun respectievelijke antwoorden:\n';
@@ -55,6 +55,7 @@ for (const faq of faqs.faqs) {
 }
 return prompt;
 };
+
 /**
  *  First webhook to be called when phone call starts
  */
@@ -71,7 +72,7 @@ app.post('/voice', async (req, res) => {
     method: 'POST'
   });
   
-  gather.say({voice: defaultVoice}, 'Welkom bij onze klantenservice! Kies uit de volgende opties: Toets 1 voor algemene vragen, toets 2 voor vragen over uw factuur of bestelling, of toets 3 om met een medewerker te spreken.');
+  gather.say({voice: defaultVoice}, 'Welkom bij onze A.I. klantenservice! Kies uit de volgende opties: Toets 1 voor algemene vragen, toets 2 voor vragen over uw factuur of bestelling, of toets 3 om met een medewerker te spreken.');
   
   console.log(`Twiml: ${twiml.toString()}`);
   
@@ -91,7 +92,7 @@ app.post('/path', async (req, res) => {
       twiml.redirect('/personal')
       break;
     case ('3'):
-      twiml.dial('+31686251763')
+      twiml.dial(redirectNumber)
       break;
     default:
       twiml.say({voice: defaultVoice}, 'Ongeldige optie, probeer het opnieuw.');
@@ -100,7 +101,7 @@ app.post('/path', async (req, res) => {
 
   res.type('text/xml');
   res.send(twiml.toString());
-})
+});
 
 app.post('/faq', async (req, res) => {
   const twiml = new VoiceResponse();
@@ -120,7 +121,7 @@ app.post('/faq', async (req, res) => {
 
   res.type('text/xml');
   res.send(twiml.toString());
-})
+});
 
 app.post('/process-faq', async (req, res) => {
   const twiml = new VoiceResponse();
@@ -189,7 +190,7 @@ app.post('/ask-purpose', async (req, res) => {
 
   res.type('text/xml');
   res.send(twiml.toString());
-})
+});
 
 app.post('/process-customer-number', async (req, res) => {
   const twiml = new VoiceResponse();
@@ -201,10 +202,8 @@ app.post('/process-customer-number', async (req, res) => {
 
   if (digit == 1) {
   customerOrders = await getCustomerOrders(credential);
-  console.log('Orders ' + customerOrders);
   } else {
   customerInfo = await getCustomerInfo(credential);
-  console.log('Info ' + customerInfo);
   }
 
   // Retrieve customer information from the database
@@ -298,10 +297,10 @@ async function getCustomerOrders(customerCredential) {
 
     // If the customer is found, return their 'voornaam', 'achternaam', and 'bestellingen'
     if (customerInfo) {
-      const { voornaam, achternaam, bestellingen } = customerInfo;
-      console.log(`Name: ${voornaam} ${achternaam}`);
+      const { voornaam, bestellingen } = customerInfo;
+      console.log(`Name: ${voornaam}`);
       console.log(`Orders: ${bestellingen}`);
-      return { voornaam, achternaam, bestellingen };
+      return { voornaam, bestellingen };
     } else {
       console.log('Customer not found');
       return null;
@@ -311,7 +310,7 @@ async function getCustomerOrders(customerCredential) {
   } finally {
     await client.close();
   }
-}
+};
 
 /**
  * Connect to the MongoDB database and retrieve the customer's information
