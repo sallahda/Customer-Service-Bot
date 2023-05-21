@@ -1,4 +1,4 @@
-# AI-bot
+# Customer-Service Bot
 
 Procesdocumentatie voor het bouwen van een telefonische klantenservice met behulp van Twilio, Express en OpenAI API
 
