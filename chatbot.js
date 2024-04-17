@@ -168,7 +168,6 @@ app.post('/personal', async (req, res) => {
   res.send(twiml.toString());
 });
 
-//TODO: GEEF EEN PAAR OPTIES VOOR DE REDEN VAN BELLEN, DENK NA OF JE HIER DE CUSTOMERINFO AL WILT OPHALEN EN GWN MEEWILT GEVEN IN DE QUERYSTRING OF NIET.
 app.post('/ask-purpose', async (req, res) => {
   const twiml = new VoiceResponse();
   const userSpeech = req.body.SpeechResult;
@@ -207,9 +206,7 @@ app.post('/process-customer-number', async (req, res) => {
   }
 
   // Retrieve customer information from the database
-
   if (customerInfo || customerOrders) {
-    console.log(customerInfo || customerOrders);
 
     // Customer information found, continue with the conversation
     const gather = twiml.gather({
@@ -298,8 +295,6 @@ async function getCustomerOrders(customerCredential) {
     // If the customer is found, return their 'voornaam', 'achternaam', and 'bestellingen'
     if (customerInfo) {
       const { voornaam, bestellingen } = customerInfo;
-      console.log(`Name: ${voornaam}`);
-      console.log(`Orders: ${bestellingen}`);
       return { voornaam, bestellingen };
     } else {
       console.log('Customer not found');
@@ -393,5 +388,3 @@ async function generateResponse(prompt, type, context, customerInfo, conversatio
 app.listen(process.env.BACKEND_PORT, () => {
   console.log(`Server listening on http://localhost:${process.env.BACKEND_PORT}`);
 });
-
-// TODO: Zorg ervoor dat wanneer tot ziens wordt gezegd er ook daadwerkelijk wordt opgehangen!
